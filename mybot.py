@@ -25,7 +25,7 @@ exchange = ccxt.binance({
 })
 
 # Configurazione dei parametri di trading
-symbol = 'BTC/USDT'
+symbol = 'BTC/USDC'
 timeframe = '5m'  # intervallo di tempo
 quantity = 0.001  # quantità di BTC da acquistare/vendere
 max_balance = 100  # budget massimo
