@@ -135,21 +135,45 @@ def apply_strategy(df, latest_price, stop_loss_percent, entry_price):
 
 
 
-
-
 # def place_order(order_type, symbol, quantity):
-#     if order_type == 'buy':
-#         order = exchange.create_market_buy_order(symbol, quantity)
-#     elif order_type == 'sell':
-#         order = exchange.create_market_sell_order(symbol, quantity)
-#     else:
-#         order = None
-#     return order
-
+#     try:
+#         if order_type == 'buy':
+#             order = exchange.create_market_buy_order(symbol, quantity)
+#         elif order_type == 'sell':
+#             order = exchange.create_market_sell_order(symbol, quantity)
+#         else:
+#             raise ValueError("Tipo di ordine non valido. Usa 'buy' o 'sell'.")
+        
+#         # Verifica che l'ordine sia stato eseguito correttamente
+#         if order:
+#             print(f"Ordine {order_type} eseguito per {quantity} {symbol}. Dettagli: {order}")
+#         return order
+#     except ccxt.NetworkError as e:
+#         print(f"Errore di rete: {str(e)}")
+#     except ccxt.ExchangeError as e:
+#         print(f"Errore nell'Exchange: {str(e)}")
+#     except Exception as e:
+#         print(f"Errore generico: {str(e)}")
+    
+#     return None
 
 
 def place_order(order_type, symbol, quantity):
     try:
+        # Controlla il saldo prima di piazzare l'ordine
+        balance_info = exchange.fetch_balance()
+        usdc_balance = balance_info['total'].get('USDC', 0)
+        btc_balance = balance_info['total'].get('BTC', 0)
+
+        # Controlli preliminari sui fondi
+        if order_type == 'buy' and usdc_balance < quantity * get_latest_price(symbol)['last']:
+            print("Fondi USDC insufficienti per completare l'ordine di acquisto.")
+            return None
+        elif order_type == 'sell' and btc_balance < quantity:
+            print("Fondi BTC insufficienti per completare l'ordine di vendita.")
+            return None
+
+        # Esegue l'ordine se i fondi sono sufficienti
         if order_type == 'buy':
             order = exchange.create_market_buy_order(symbol, quantity)
         elif order_type == 'sell':
@@ -157,7 +181,6 @@ def place_order(order_type, symbol, quantity):
         else:
             raise ValueError("Tipo di ordine non valido. Usa 'buy' o 'sell'.")
         
-        # Verifica che l'ordine sia stato eseguito correttamente
         if order:
             print(f"Ordine {order_type} eseguito per {quantity} {symbol}. Dettagli: {order}")
         return order
@@ -169,6 +192,7 @@ def place_order(order_type, symbol, quantity):
         print(f"Errore generico: {str(e)}")
     
     return None
+
 
 
 
