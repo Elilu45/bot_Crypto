@@ -5,6 +5,11 @@ import time
 import os
 from dotenv import load_dotenv
 
+import ntplib
+from time import ctime, sleep
+
+from ccxt.base.errors import RequestTimeout
+
 # Carica le variabili dal file .env
 load_dotenv()
 
@@ -20,23 +25,49 @@ exchange = ccxt.binance({
 })
 
 # Configurazione dei parametri di trading
-symbol = 'BTC/USDT'
+symbol = 'XRP/USDT'
 timeframe = '5m'  # intervallo di tempo
 quantity = 0.001  # quantità di BTC da acquistare/vendere
 max_balance = 100  # budget massimo
 
 
+def sync_time():
+    ntp_client = ntplib.NTPClient()
+    response = ntp_client.request('pool.ntp.org')
+    print("Current time:", ctime(response.tx_time))
+
+
+# def get_market_data(symbol, timeframe):
+#     # Recupera i dati di mercato
+#     bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=100)
+#     df = pd.DataFrame(bars, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+    
+#     # Converte il timestamp da Unix a datetime in UTC, poi nel fuso orario locale
+#     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
+#     df['timestamp'] = df['timestamp'].dt.tz_convert('Europe/Rome')  # Sostituisci con il tuo fuso orario
+    
+#     # Calcola l'RSI utilizzando i prezzi di chiusura e aggiungilo come colonna 'rsi'
+#     df['rsi'] = ta.momentum.RSIIndicator(df['close']).rsi()
+    
+#     return df
 
 
 def get_market_data(symbol, timeframe):
-    bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=100)
-    df = pd.DataFrame(bars, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-    
-    # Converte 'timestamp' in datetime UTC e poi nel fuso orario locale
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
-    df['timestamp'] = df['timestamp'].dt.tz_convert('Europe/Rome')  # Sostituisci con il tuo fuso orario, se diverso
-    
-    return df
+    try:
+        bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=100)
+        df = pd.DataFrame(bars, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
+        df['timestamp'] = df['timestamp'].dt.tz_convert('Europe/Rome')
+        #df['rsi'] = ta.momentum.RSIIndicator(df['close']).rsi()
+        df['rsi'] = ta.momentum.RSIIndicator(df['close'], window=6).rsi()
+        return df
+    except RequestTimeout as e:
+        print(f"Timeout durante il recupero dei dati per {symbol}. Riprovo...")
+        time.sleep(5)  # Attendi 5 secondi e poi riprova
+        return get_market_data(symbol, timeframe)  # Riprova la richiesta
+    except Exception as e:
+        print(f"Errore nel recupero dei dati per {symbol}: {str(e)}")
+        return None
 
 
 
@@ -55,9 +86,7 @@ def get_latest_price(symbol):
 
 
 def apply_strategy(df, latest_price):
-    # Calcola l'RSI e lo aggiunge al DataFrame
-    df['rsi'] = ta.momentum.RSIIndicator(df['close']).rsi()
-    
+
     # Ottiene l'ultimo valore di RSI e l'ultimo prezzo
     rsi_last = df['rsi'].iloc[-1]
     last_price = latest_price['last']
@@ -65,10 +94,13 @@ def apply_strategy(df, latest_price):
     # Condizioni di acquisto e vendita basate su RSI e prezzo attuale
     if rsi_last < 30 and last_price < df['close'].iloc[-1]:  
         # RSI indica ipervenduto e l'ultimo prezzo è inferiore al prezzo di chiusura precedente
+        print("RSI:", rsi_last, "Last Price:", last_price, "- Decision: Buy")
         return 'buy'
     elif rsi_last > 70 and last_price > df['close'].iloc[-1]:  
         # RSI indica ipercomprato e l'ultimo prezzo è superiore al prezzo di chiusura precedente
+        print("RSI:", rsi_last, "Last Price:", last_price, "- Decision: Sell")
         return 'sell'
+    print("RSI:", rsi_last, "Last Price:", last_price, "- Decision: Hold")
     return 'hold'
 
 
@@ -107,9 +139,10 @@ def run_bot():
         else:
             print("Nessuna azione. Aspetto il prossimo ciclo.")
         
-        time.sleep(3600)  # Attende 1 ora per il prossimo ciclo
+        time.sleep(600)  # Attende 1 ora per il prossimo ciclo
 
 
 
 if __name__ == "__main__":
+    sync_time()
     run_bot()
