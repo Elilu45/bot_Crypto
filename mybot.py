@@ -25,7 +25,7 @@ exchange = ccxt.binance({
 })
 
 # Configurazione dei parametri di trading
-symbol = 'XRP/USDT'
+symbol = 'BTC/USDT'
 timeframe = '5m'  # intervallo di tempo
 quantity = 0.001  # quantità di BTC da acquistare/vendere
 max_balance = 100  # budget massimo
@@ -139,6 +139,7 @@ def run_bot():
         else:
             print("Nessuna azione. Aspetto il prossimo ciclo.")
         
+        print(f"il mio Balance è: {balance}")
         time.sleep(600)  # Attende 1 ora per il prossimo ciclo
 
 
