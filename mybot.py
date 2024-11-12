@@ -160,19 +160,6 @@ def apply_strategy(df, latest_price, stop_loss_percent, entry_price):
 
 def place_order(order_type, symbol, quantity):
     try:
-        # Controlla il saldo prima di piazzare l'ordine
-        balance_info = exchange.fetch_balance()
-        usdc_balance = balance_info['total'].get('USDC', 0)
-        btc_balance = balance_info['total'].get('BTC', 0)
-
-        # Controlli preliminari sui fondi
-        if order_type == 'buy' and usdc_balance < quantity * get_latest_price(symbol)['last']:
-            print("Fondi USDC insufficienti per completare l'ordine di acquisto.")
-            return None
-        elif order_type == 'sell' and btc_balance < quantity:
-            print("Fondi BTC insufficienti per completare l'ordine di vendita.")
-            return None
-
         # Esegue l'ordine se i fondi sono sufficienti
         if order_type == 'buy':
             order = exchange.create_market_buy_order(symbol, quantity)
@@ -243,6 +230,11 @@ def run_bot():
         print(f"Dati storici: {df}")
         print(f"Ultimo prezzo: {latest_price}")
 
+        # Controlla il saldo prima di piazzare l'ordine
+        balance_info = exchange.fetch_balance()
+        usdc_balance = balance_info['total'].get('USDC', 0)
+        btc_balance = balance_info['total'].get('BTC', 0)
+
         # Applica la strategia con stop loss
         action, entry_price = apply_strategy(
             df, 
@@ -257,10 +249,13 @@ def run_bot():
 
         # Esegui le azioni di trading in base alla decisione
         if action == 'buy' and not in_position:
-            print(f"Acquisto in corso perchè position {in_position}")
-            order = place_order('buy', symbol, quantity)
-            print("Compra eseguita:", order)
-            in_position = True  # Ora siamo in posizione
+            if usdc_balance < quantity * get_latest_price(symbol)['last']:
+                print("Fondi USDC insufficienti per completare l'ordine di acquisto.")
+            else:
+                print(f"Acquisto in corso perchè position {in_position}")
+                order = place_order('buy', symbol, quantity)
+                print("Compra eseguita:", order)
+                in_position = True  # Ora siamo in posizione
         elif action == 'sell' and in_position:
             print(f"Vendita in corso perchè position {in_position}")
             order = place_order('sell', symbol, quantity)
@@ -281,6 +276,7 @@ def run_bot():
 
         # Calcola e stampa la differenza tra USDC e BTC
         total_balance = usdc_balance + btc_to_usdc  # Somma il valore in USDC di BTC al saldo USDC
+        print(f"Il mio Residuo totale in USDC è: {usdc_balance}")
         print(f"Il mio Balance totale in USDC è: {total_balance}")
 
         time.sleep(120)  # Attende 2 minuti per il prossimo ciclo
