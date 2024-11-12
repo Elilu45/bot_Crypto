@@ -111,7 +111,7 @@ def apply_strategy(df, latest_price, stop_loss_percent, entry_price):
     last_price = latest_price['last']
 
     # Condizioni di acquisto e vendita basate su RSI e prezzo attuale
-    if rsi_last < 40 and last_price <= df['close'].iloc[-1]:
+    if rsi_last < 30 and last_price <= df['close'].iloc[-1]:
         # RSI indica ipervenduto e l'ultimo prezzo è inferiore al prezzo di chiusura precedente
         print(f"RSI: {rsi_last}, Last Price: {last_price}")
         entry_price = last_price  # Imposta il prezzo di ingresso
@@ -230,8 +230,8 @@ def run_bot():
 
         # Esegui le azioni di trading in base alla decisione
         if action == 'buy' and not in_position:
-            #order = place_order('buy', symbol, quantity)
-            #print("Compra eseguita:", order)
+            order = place_order('buy', symbol, quantity)
+            print("Compra eseguita:", order)
             in_position = True  # Ora siamo in posizione
         elif action == 'sell' and in_position:
             order = place_order('sell', symbol, quantity)
