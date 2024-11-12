@@ -85,62 +85,160 @@ def get_latest_price(symbol):
 
 
 
-def apply_strategy(df, latest_price):
+# def apply_strategy(df, latest_price):
 
-    # Ottiene l'ultimo valore di RSI e l'ultimo prezzo
+#     # Ottiene l'ultimo valore di RSI e l'ultimo prezzo
+#     rsi_last = df['rsi'].iloc[-1]
+#     last_price = latest_price['last']
+
+#     # Condizioni di acquisto e vendita basate su RSI e prezzo attuale
+#     if rsi_last < 30 and last_price < df['close'].iloc[-1]:  
+#         # RSI indica ipervenduto e l'ultimo prezzo è inferiore al prezzo di chiusura precedente
+#         print("RSI:", rsi_last, "Last Price:", last_price, "- Decision: Buy")
+#         return 'buy'
+#     elif rsi_last > 70 and last_price > df['close'].iloc[-1]:  
+#         # RSI indica ipercomprato e l'ultimo prezzo è superiore al prezzo di chiusura precedente
+#         print("RSI:", rsi_last, "Last Price:", last_price, "- Decision: Sell")
+#         return 'sell'
+#     print("RSI:", rsi_last, "Last Price:", last_price, "- Decision: Hold")
+#     return 'hold'
+
+
+
+def apply_strategy(df, latest_price, stop_loss_percent, entry_price):
+    # Ottieni l'ultimo valore di RSI e l'ultimo prezzo
     rsi_last = df['rsi'].iloc[-1]
     last_price = latest_price['last']
 
     # Condizioni di acquisto e vendita basate su RSI e prezzo attuale
-    if rsi_last < 30 and last_price < df['close'].iloc[-1]:  
+    if rsi_last < 40 and last_price <= df['close'].iloc[-1]:
         # RSI indica ipervenduto e l'ultimo prezzo è inferiore al prezzo di chiusura precedente
         print("RSI:", rsi_last, "Last Price:", last_price, "- Decision: Buy")
-        return 'buy'
-    elif rsi_last > 70 and last_price > df['close'].iloc[-1]:  
+        entry_price = last_price  # Imposta il prezzo di ingresso
+        return 'buy', entry_price, True  # Restituisci solo l'azione e il prezzo di ingresso
+
+    elif rsi_last > 70 and last_price > df['close'].iloc[-1]:
         # RSI indica ipercomprato e l'ultimo prezzo è superiore al prezzo di chiusura precedente
         print("RSI:", rsi_last, "Last Price:", last_price, "- Decision: Sell")
-        return 'sell'
+        return 'sell', entry_price, False  # Non cambiamo l'entry_price perché siamo in uscita
+
+    elif entry_price is not None:
+        # Verifica lo stop loss se siamo in posizione
+        stop_loss = entry_price * (1 - stop_loss_percent)
+        if last_price <= stop_loss:
+            print(f"Stop loss attivato. Prezzo: {last_price}, Entry Price: {entry_price}, Stop Loss: {stop_loss}")
+            return 'sell', entry_price, False  # Esegui la vendita se raggiunto lo stop loss
+
     print("RSI:", rsi_last, "Last Price:", last_price, "- Decision: Hold")
-    return 'hold'
+    return 'hold', entry_price  # Ritorna "hold" se nessuna azione viene presa
+
+
+
+
+
+
+# def place_order(order_type, symbol, quantity):
+#     if order_type == 'buy':
+#         order = exchange.create_market_buy_order(symbol, quantity)
+#     elif order_type == 'sell':
+#         order = exchange.create_market_sell_order(symbol, quantity)
+#     else:
+#         order = None
+#     return order
 
 
 
 def place_order(order_type, symbol, quantity):
-    if order_type == 'buy':
-        order = exchange.create_market_buy_order(symbol, quantity)
-    elif order_type == 'sell':
-        order = exchange.create_market_sell_order(symbol, quantity)
-    else:
-        order = None
-    return order
+    try:
+        if order_type == 'buy':
+            order = exchange.create_market_buy_order(symbol, quantity)
+        elif order_type == 'sell':
+            order = exchange.create_market_sell_order(symbol, quantity)
+        else:
+            raise ValueError("Tipo di ordine non valido. Usa 'buy' o 'sell'.")
+        
+        # Verifica che l'ordine sia stato eseguito correttamente
+        if order:
+            print(f"Ordine {order_type} eseguito per {quantity} {symbol}. Dettagli: {order}")
+        return order
+    except ccxt.NetworkError as e:
+        print(f"Errore di rete: {str(e)}")
+    except ccxt.ExchangeError as e:
+        print(f"Errore nell'Exchange: {str(e)}")
+    except Exception as e:
+        print(f"Errore generico: {str(e)}")
+    
+    return None
+
+
+
+
+# def run_bot():
+#     balance = max_balance
+#     in_position = False
+#     entry_price = None
+#     while True:
+#         df = get_market_data(symbol, timeframe)
+#         latest_price = get_latest_price(symbol)
+#         print(f"Dati storici: {df}")
+#         print(f"Ultimo prezzo: {latest_price}")
+
+#         # Applica la strategia
+#         action = apply_strategy(df, latest_price)
+#         print(f"Decisione di trading: {action}")
+        
+#         if action == 'buy' and balance >= quantity:
+#             order = place_order('buy', symbol, quantity)
+#             print("Compra eseguita:", order)
+#             balance -= quantity
+#         elif action == 'sell' and balance >= quantity:
+#             order = place_order('sell', symbol, quantity)
+#             print("Vendita eseguita:", order)
+#             balance += quantity
+#         else:
+#             print("Nessuna azione. Aspetto il prossimo ciclo.")
+        
+#         print(f"il mio Balance è: {balance}")
+#         time.sleep(600)  # Attende 1 ora per il prossimo ciclo
 
 
 
 def run_bot():
     balance = max_balance
+    in_position = False
+    entry_price = None
     while True:
         df = get_market_data(symbol, timeframe)
         latest_price = get_latest_price(symbol)
         print(f"Dati storici: {df}")
         print(f"Ultimo prezzo: {latest_price}")
 
-        # Applica la strategia
-        action = apply_strategy(df, latest_price)
+        # Applica la strategia con stop loss
+        action, entry_price, in_position = apply_strategy(
+            df, 
+            latest_price, 
+            stop_loss_percent=0.02,  # Definisci la percentuale di stop loss
+            entry_price=entry_price
+        )
         print(f"Decisione di trading: {action}")
-        
-        if action == 'buy' and balance >= quantity:
+
+        # Esegui le azioni di trading in base alla decisione
+        if action == 'buy' and not in_position:
             order = place_order('buy', symbol, quantity)
             print("Compra eseguita:", order)
             balance -= quantity
-        elif action == 'sell' and balance >= quantity:
+            in_position = True  # Ora siamo in posizione
+        elif action == 'sell' and in_position:
             order = place_order('sell', symbol, quantity)
             print("Vendita eseguita:", order)
             balance += quantity
-        else:
+            in_position = False  # Siamo usciti dalla posizione
+        elif action == 'hold':
             print("Nessuna azione. Aspetto il prossimo ciclo.")
         
-        print(f"il mio Balance è: {balance}")
-        time.sleep(600)  # Attende 1 ora per il prossimo ciclo
+        print(f"Il mio Balance è: {balance}")
+        time.sleep(120)  # Attende 2 minuti per il prossimo ciclo
+
 
 
 
