@@ -129,7 +129,7 @@ def apply_strategy(df, latest_price, stop_loss_percent, entry_price):
             print(f"Stop loss attivato. Prezzo: {last_price}, Entry Price: {entry_price}, Stop Loss: {stop_loss}")
             return 'sell', entry_price  # Esegui la vendita se raggiunto lo stop loss
 
-    print("RSI:", rsi_last, "Last Price:", last_price, "- Decision: Hold")
+    print(f"RSI: {rsi_last} Last Price: {last_price} and df[close]: {df['close'].iloc[-1]} - Decision: Hold")
     return 'hold', entry_price  # Ritorna "hold" se nessuna azione viene presa
 
 
@@ -226,14 +226,19 @@ def run_bot():
             stop_loss_percent=0.02,  # Definisci la percentuale di stop loss
             entry_price=entry_price,
         )
-        print(f"Decisione di trading: possibile {action}")
+        if action == "hold":
+            print(f"Nessuna decisione di trading perchè action: {action}")
+        else:
+            print(f"Decisione di trading: possibile {action}")
 
         # Esegui le azioni di trading in base alla decisione
         if action == 'buy' and not in_position:
+            print(f"Acquisto in corso perchè position {in_position}")
             order = place_order('buy', symbol, quantity)
             print("Compra eseguita:", order)
             in_position = True  # Ora siamo in posizione
         elif action == 'sell' and in_position:
+            print(f"Vendita in corso perchè position {in_position}")
             order = place_order('sell', symbol, quantity)
             print("Vendita eseguita:", order)
             in_position = False  # Siamo usciti dalla posizione
@@ -253,7 +258,8 @@ def run_bot():
         # Calcola e stampa la differenza tra USDC e BTC
         total_balance = usdc_balance + btc_to_usdc  # Somma il valore in USDC di BTC al saldo USDC
         print(f"Il mio Balance totale in USDC è: {total_balance}")
-        time.sleep(60)  # Attende 1 minuto per il prossimo ciclo
+
+        time.sleep(120)  # Attende 2 minuti per il prossimo ciclo
 
 
 
