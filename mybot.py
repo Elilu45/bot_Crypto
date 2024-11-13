@@ -37,20 +37,6 @@ def sync_time():
     print("Current time:", ctime(response.tx_time))
 
 
-# def get_market_data(symbol, timeframe):
-#     # Recupera i dati di mercato
-#     bars = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=100)
-#     df = pd.DataFrame(bars, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-    
-#     # Converte il timestamp da Unix a datetime in UTC, poi nel fuso orario locale
-#     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
-#     df['timestamp'] = df['timestamp'].dt.tz_convert('Europe/Rome')  # Sostituisci con il tuo fuso orario
-    
-#     # Calcola l'RSI utilizzando i prezzi di chiusura e aggiungilo come colonna 'rsi'
-#     df['rsi'] = ta.momentum.RSIIndicator(df['close']).rsi()
-    
-#     return df
-
 
 def get_market_data(symbol, timeframe):
     try:
@@ -85,30 +71,12 @@ def get_latest_price(symbol):
 
 
 
-# def apply_strategy(df, latest_price):
-
-#     # Ottiene l'ultimo valore di RSI e l'ultimo prezzo
-#     rsi_last = df['rsi'].iloc[-1]
-#     last_price = latest_price['last']
-
-#     # Condizioni di acquisto e vendita basate su RSI e prezzo attuale
-#     if rsi_last < 30 and last_price < df['close'].iloc[-1]:  
-#         # RSI indica ipervenduto e l'ultimo prezzo è inferiore al prezzo di chiusura precedente
-#         print("RSI:", rsi_last, "Last Price:", last_price, "- Decision: Buy")
-#         return 'buy'
-#     elif rsi_last > 70 and last_price > df['close'].iloc[-1]:  
-#         # RSI indica ipercomprato e l'ultimo prezzo è superiore al prezzo di chiusura precedente
-#         print("RSI:", rsi_last, "Last Price:", last_price, "- Decision: Sell")
-#         return 'sell'
-#     print("RSI:", rsi_last, "Last Price:", last_price, "- Decision: Hold")
-#     return 'hold'
-
-
 
 def apply_strategy(df, latest_price, stop_loss_percent, entry_price):
     # Ottieni l'ultimo valore di RSI e l'ultimo prezzo
     rsi_last = df['rsi'].iloc[-1]
     last_price = latest_price['last']
+    print(f"Last price: {last_price} and df[close]: {df['close'].iloc[-1]}")
 
     # Condizioni di acquisto e vendita basate su RSI e prezzo attuale
     if rsi_last < 30 and last_price <= df['close'].iloc[-1]:
@@ -117,7 +85,7 @@ def apply_strategy(df, latest_price, stop_loss_percent, entry_price):
         entry_price = last_price  # Imposta il prezzo di ingresso
         return 'buy', entry_price  # Restituisci solo l'azione e il prezzo di ingresso
 
-    elif rsi_last > 70 and last_price > df['close'].iloc[-1]:
+    elif rsi_last > 70 and last_price >= df['close'].iloc[-1]:
         # RSI indica ipercomprato e l'ultimo prezzo è superiore al prezzo di chiusura precedente
         print(f"RSI: {rsi_last}, Last Price: {last_price}")
         return 'sell', entry_price  # Non cambiamo l'entry_price perché siamo in uscita
@@ -133,29 +101,6 @@ def apply_strategy(df, latest_price, stop_loss_percent, entry_price):
     return 'hold', entry_price  # Ritorna "hold" se nessuna azione viene presa
 
 
-
-
-# def place_order(order_type, symbol, quantity):
-#     try:
-#         if order_type == 'buy':
-#             order = exchange.create_market_buy_order(symbol, quantity)
-#         elif order_type == 'sell':
-#             order = exchange.create_market_sell_order(symbol, quantity)
-#         else:
-#             raise ValueError("Tipo di ordine non valido. Usa 'buy' o 'sell'.")
-        
-#         # Verifica che l'ordine sia stato eseguito correttamente
-#         if order:
-#             print(f"Ordine {order_type} eseguito per {quantity} {symbol}. Dettagli: {order}")
-#         return order
-#     except ccxt.NetworkError as e:
-#         print(f"Errore di rete: {str(e)}")
-#     except ccxt.ExchangeError as e:
-#         print(f"Errore nell'Exchange: {str(e)}")
-#     except Exception as e:
-#         print(f"Errore generico: {str(e)}")
-    
-#     return None
 
 
 def place_order(order_type, symbol, quantity):
@@ -183,36 +128,6 @@ def place_order(order_type, symbol, quantity):
 
 
 
-
-# def run_bot():
-#     balance = max_balance
-#     in_position = False
-#     entry_price = None
-#     while True:
-#         df = get_market_data(symbol, timeframe)
-#         latest_price = get_latest_price(symbol)
-#         print(f"Dati storici: {df}")
-#         print(f"Ultimo prezzo: {latest_price}")
-
-#         # Applica la strategia
-#         action = apply_strategy(df, latest_price)
-#         print(f"Decisione di trading: {action}")
-        
-#         if action == 'buy' and balance >= quantity:
-#             order = place_order('buy', symbol, quantity)
-#             print("Compra eseguita:", order)
-#             balance -= quantity
-#         elif action == 'sell' and balance >= quantity:
-#             order = place_order('sell', symbol, quantity)
-#             print("Vendita eseguita:", order)
-#             balance += quantity
-#         else:
-#             print("Nessuna azione. Aspetto il prossimo ciclo.")
-        
-#         print(f"il mio Balance è: {balance}")
-#         time.sleep(600)  # Attende 1 ora per il prossimo ciclo
-
-
 def get_balance(symbol):
     balance_info = exchange.fetch_balance()  # Ottieni i bilanci dell'account
     if symbol in balance_info['total']:
@@ -227,7 +142,7 @@ def run_bot():
     while True:
         df = get_market_data(symbol, timeframe)
         latest_price = get_latest_price(symbol)
-        print(f"Dati storici: {df}")
+        #print(f"Dati storici: {df}")
         print(f"Ultimo prezzo: {latest_price}")
 
         # Controlla il saldo prima di piazzare l'ordine
@@ -246,7 +161,7 @@ def run_bot():
             print(f"Nessuna decisione di trading perchè action: {action}")
         else:
             print(f"Decisione di trading: possibile {action}")
-
+        #in_position = True
         # Esegui le azioni di trading in base alla decisione
         if action == 'buy' and not in_position:
             if usdc_balance < quantity * get_latest_price(symbol)['last']:
